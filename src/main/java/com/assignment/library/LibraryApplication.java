@@ -5,79 +5,86 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.StackPane;
+import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class LibraryApplication extends Application {
     private static Library library;
-    static class XCell extends ListCell<String> {
-        HBox hbox = new HBox();
-        Label label = new Label("(empty)");
-        Pane pane = new Pane();
-        Button button = new Button("(>)");
-        String lastItem;
+    public static class HBoxCell extends HBox {
+        Label label = new Label();
+        Button button = new Button();
 
-        public XCell() {
+        HBoxCell(String labelText, String buttonText) {
             super();
-            hbox.getChildren().addAll(label, pane, button);
-            HBox.setHgrow(pane, Priority.ALWAYS);
+            label.setText(labelText);
+            label.setMaxWidth(Double.MAX_VALUE);
+            HBox.setHgrow(label, Priority.ALWAYS);
+            button.setText(buttonText);
+            this.getChildren().addAll(label, button);
             button.setOnAction(new EventHandler<ActionEvent>() {
                 @Override
                 public void handle(ActionEvent event) {
-                    System.out.println(lastItem + " : " + event);
+                    String innerButtonText = button.getText();
+                    for (Book book: library.getBooks()) {
+                        if (book.getTitle().equals(labelText)) {
+                            System.out.println("You have " + innerButtonText.toLowerCase() + "ed " + "\""+ labelText +"\"");
+                            if (innerButtonText.equals("Borrow")) {
+                                book.borrowed();
+                                innerButtonText = "Return";
+                            } else {
+                                book.returned();
+                                innerButtonText="Borrow";
+                            }
+                            button.setText(innerButtonText);
+                            break;
+                        }
+                    }
                 }
             });
         }
-
-        @Override
-        protected void updateItem(String item, boolean empty) {
-            super.updateItem(item, empty);
-            setText(null);  // No text in label of super class
-            if (empty) {
-                lastItem = null;
-                setGraphic(null);
-            } else {
-                lastItem = item;
-                label.setText(item!=null ? item : "<null>");
-                setGraphic(hbox);
-            }
-        }
     }
+
+    public Parent createContent() {
+        BorderPane layout = new BorderPane();
+        List<HBoxCell> list = new ArrayList<>();
+        for (Book book : library.getBooks()) {
+            String buttonDisplayText = "Borrow";
+            if (book.isBorrowed()) {
+                buttonDisplayText = "Return";
+            }
+            list.add(new HBoxCell(book.getTitle(), buttonDisplayText));
+        }
+        ListView<HBoxCell> listView = new ListView<HBoxCell>();
+        ObservableList<HBoxCell> myObservableList = FXCollections.observableList(list);
+        listView.setItems(myObservableList);
+        layout.setCenter(listView);
+        return layout;
+    }
+
 
     @Override
-    public void start(Stage primaryStage) throws Exception {
-        StackPane pane = new StackPane();
-        Scene scene = new Scene(pane, 600, 250);
-        primaryStage.setScene(scene);
-        ObservableList<String> list = FXCollections.observableArrayList();
-        for(Book book: library.getBooks()) {
-            list.add(book.getTitle());
-        }
-        ListView<String> lv = new ListView<>(list);
-        lv.setCellFactory(new Callback<ListView<String>, ListCell<String>>() {
-            @Override
-            public ListCell<String> call(ListView<String> param) {
-                return new XCell();
-            }
-        });
-        pane.getChildren().add(lv);
-        primaryStage.show();
+    public void start(Stage stage) throws Exception {
+        stage.setScene(new Scene(createContent()));
+        stage.setWidth(300);
+        stage.setHeight(200);
+        stage.show();
     }
-
     public static void main(String[] args) {
         library = new Library("300 College Park Dr.");
         library.addBook(new Book("Java How To Program (Early Objects))"));
         library.addBook(new Book("Rise of the Robots"));
         library.addBook(new Book("Code Complete"));
+        library.getBooks().get(2).borrowed();
         library.addBook(new Book("The Pragmatic Programmer"));
         launch(args);
     }
